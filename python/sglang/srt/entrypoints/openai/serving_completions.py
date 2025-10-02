@@ -105,8 +105,10 @@ class OpenAIServingCompletion(OpenAIServingBase):
 
         # Process prompt
         prompt = request.prompt
+        logger.info(f"[COMPLETIONS DEBUG] Original prompt from request: {prompt}")
         if self.template_manager.completion_template_name is not None:
             prompt = generate_completion_prompt_from_request(request)
+            logger.info(f"[COMPLETIONS DEBUG] After template processing: {prompt}")
 
         # Set logprob start length based on echo and logprobs
         if request.echo and request.logprobs:
