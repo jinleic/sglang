@@ -205,6 +205,11 @@ class CompletionRequest(BaseModel):
     user: Optional[str] = None
     return_hidden_states: bool = False
 
+    # Multimodal support (Fireworks AI compatible)
+    images: Optional[List[str]] = None
+    videos: Optional[List[str]] = None
+    audios: Optional[List[str]] = None
+
     # Extra parameters for SRT backend only and will be ignored by OpenAI models.
     top_k: int = -1
     min_p: float = 0.0

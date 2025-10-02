@@ -15,6 +15,7 @@ from sglang.srt.entrypoints.openai.protocol import (
     CompletionStreamResponse,
     ErrorResponse,
 )
+from sglang.srt.utils import ImageData
 from sglang.srt.entrypoints.openai.serving_base import OpenAIServingBase
 from sglang.srt.entrypoints.openai.usage_processor import UsageProcessor
 from sglang.srt.entrypoints.openai.utils import (
@@ -56,6 +57,36 @@ class OpenAIServingCompletion(OpenAIServingBase):
 
         return None
 
+    def _process_multimodal_data(
+        self, request: CompletionRequest
+    ) -> tuple[Optional[List], Optional[List[str]], Optional[List[str]], List[str]]:
+        """Process multimodal data from request.
+
+        Returns:
+            tuple: (image_data, video_data, audio_data, modalities)
+        """
+        image_data = None
+        video_data = None
+        audio_data = None
+        modalities = []
+
+        # Process images
+        if request.images:
+            image_data = [ImageData(url=img, detail="auto") for img in request.images]
+            modalities.extend(["image"] * len(request.images))
+
+        # Process videos
+        if request.videos:
+            video_data = request.videos
+            modalities.extend(["video"] * len(request.videos))
+
+        # Process audios
+        if request.audios:
+            audio_data = request.audios
+            modalities.extend(["audio"] * len(request.audios))
+
+        return image_data, video_data, audio_data, modalities
+
     def _convert_to_internal_request(
         self,
         request: CompletionRequest,
@@ -68,6 +99,10 @@ class OpenAIServingCompletion(OpenAIServingBase):
                 "Echo is not compatible with logprobs. "
                 "To compute logprobs of input prompt, please use the native /generate API."
             )
+
+        # Check if model is multimodal (same as chat completions)
+        is_multimodal = self.tokenizer_manager.model_config.is_multimodal
+
         # Process prompt
         prompt = request.prompt
         if self.template_manager.completion_template_name is not None:
@@ -82,19 +117,39 @@ class OpenAIServingCompletion(OpenAIServingBase):
         # Build sampling parameters
         sampling_params = self._build_sampling_params(request)
 
-        # Determine prompt format
-        if isinstance(prompt, str) or (
-            isinstance(prompt, list) and isinstance(prompt[0], str)
-        ):
-            prompt_kwargs = {"text": prompt}
+        # Process multimodal data
+        image_data, video_data, audio_data, modalities = self._process_multimodal_data(
+            request
+        )
+
+        # Determine prompt format (same logic as chat completions)
+        if is_multimodal:
+            # For multimodal models, always use text
+            if isinstance(prompt, str):
+                prompt_kwargs = {"text": prompt}
+            elif isinstance(prompt, list) and isinstance(prompt[0], str):
+                prompt_kwargs = {"text": prompt}
+            else:
+                # Convert input_ids to text for multimodal
+                prompt_kwargs = {"text": self.tokenizer_manager.tokenizer.decode(prompt)}
         else:
-            prompt_kwargs = {"input_ids": prompt}
+            # For non-multimodal models, use original logic
+            if isinstance(prompt, str) or (
+                isinstance(prompt, list) and isinstance(prompt[0], str)
+            ):
+                prompt_kwargs = {"text": prompt}
+            else:
+                prompt_kwargs = {"input_ids": prompt}
 
         # Extract custom labels from raw request headers
         custom_labels = self.extract_custom_labels(raw_request)
 
         adapted_request = GenerateReqInput(
             **prompt_kwargs,
+            image_data=image_data,
+            video_data=video_data,
+            audio_data=audio_data,
+            modalities=modalities,
             sampling_params=sampling_params,
             return_logprob=request.logprobs is not None,
             top_logprobs_num=request.logprobs if request.logprobs is not None else 0,
