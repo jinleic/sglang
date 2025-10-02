@@ -105,10 +105,8 @@ class OpenAIServingCompletion(OpenAIServingBase):
 
         # Process prompt
         prompt = request.prompt
-        logger.info(f"[COMPLETIONS DEBUG] Original prompt from request: {prompt}")
         if self.template_manager.completion_template_name is not None:
             prompt = generate_completion_prompt_from_request(request)
-            logger.info(f"[COMPLETIONS DEBUG] After template processing: {prompt}")
 
         # Set logprob start length based on echo and logprobs
         if request.echo and request.logprobs:
@@ -168,12 +166,6 @@ class OpenAIServingCompletion(OpenAIServingBase):
             priority=request.priority,
             custom_labels=custom_labels,
         )
-
-        # DEBUG: Log what we're sending
-        logger.info(f"[COMPLETIONS DEBUG] is_multimodal={is_multimodal}")
-        logger.info(f"[COMPLETIONS DEBUG] prompt_kwargs={prompt_kwargs}")
-        logger.info(f"[COMPLETIONS DEBUG] image_data={image_data}")
-        logger.info(f"[COMPLETIONS DEBUG] modalities={modalities}")
 
         return adapted_request, request
 
