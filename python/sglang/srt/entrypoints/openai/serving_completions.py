@@ -167,6 +167,12 @@ class OpenAIServingCompletion(OpenAIServingBase):
             custom_labels=custom_labels,
         )
 
+        # DEBUG: Log what we're sending
+        logger.info(f"[COMPLETIONS DEBUG] is_multimodal={is_multimodal}")
+        logger.info(f"[COMPLETIONS DEBUG] prompt_kwargs={prompt_kwargs}")
+        logger.info(f"[COMPLETIONS DEBUG] image_data={image_data}")
+        logger.info(f"[COMPLETIONS DEBUG] modalities={modalities}")
+
         return adapted_request, request
 
     def _build_sampling_params(self, request: CompletionRequest) -> Dict[str, Any]:

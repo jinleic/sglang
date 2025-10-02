@@ -178,6 +178,12 @@ class OpenAIServingChat(OpenAIServingBase):
             custom_labels=custom_labels,
         )
 
+        # DEBUG: Log what we're sending
+        logger.info(f"[CHAT DEBUG] is_multimodal={is_multimodal}")
+        logger.info(f"[CHAT DEBUG] prompt_kwargs={prompt_kwargs}")
+        logger.info(f"[CHAT DEBUG] image_data={processed_messages.image_data}")
+        logger.info(f"[CHAT DEBUG] modalities={processed_messages.modalities}")
+
         return adapted_request, request
 
     def _process_messages(
