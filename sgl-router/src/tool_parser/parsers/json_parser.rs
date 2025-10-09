@@ -8,7 +8,7 @@ use crate::tool_parser::{
     parsers::helpers,
     partial_json::PartialJson,
     traits::ToolParser,
-    types::{FunctionCall, StreamingParseResult, ToolCall},
+    types::{FunctionCall, StreamingParseResult, ToolCall, ToolCallItem},
 };
 
 /// JSON format parser for tool calls
@@ -136,16 +136,7 @@ impl JsonParser {
             let arguments = serde_json::to_string(args)
                 .map_err(|e| ToolParserError::ParsingFailed(e.to_string()))?;
 
-            // Generate a unique ID if not provided
-            let id = obj
-                .get("id")
-                .and_then(|v| v.as_str())
-                .map(String::from)
-                .unwrap_or_else(|| format!("call_{}", uuid::Uuid::new_v4()));
-
             Ok(Some(ToolCall {
-                id,
-                r#type: "function".to_string(),
                 function: FunctionCall {
                     name: name.to_string(),
                     arguments,
@@ -182,11 +173,6 @@ impl JsonParser {
         }
 
         Ok(tools)
-    }
-
-    /// Check if text contains tool calls
-    fn has_tool_call(&self, text: &str) -> bool {
-        text.contains('[') || text.contains('{')
     }
 }
 
@@ -225,7 +211,7 @@ impl ToolParser for JsonParser {
         let current_text = &self.buffer.clone();
 
         // Check if current_text has tool_call
-        let has_tool_start = self.has_tool_call(current_text)
+        let has_tool_start = self.has_tool_markers(current_text)
             || (self.current_tool_id >= 0 && current_text.starts_with(self.tool_call_separator));
 
         if !has_tool_start {
@@ -270,8 +256,12 @@ impl ToolParser for JsonParser {
         )
     }
 
-    fn detect_format(&self, text: &str) -> bool {
+    fn has_tool_markers(&self, text: &str) -> bool {
         let trimmed = text.trim();
-        (trimmed.starts_with('[') || trimmed.starts_with('{')) && trimmed.contains(r#""name""#)
+        trimmed.starts_with('[') || trimmed.starts_with('{')
+    }
+
+    fn get_unstreamed_tool_args(&self) -> Option<Vec<ToolCallItem>> {
+        helpers::get_unstreamed_args(&self.prev_tool_call_arr, &self.streamed_args_for_tool)
     }
 }
